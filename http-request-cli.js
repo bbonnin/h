@@ -1,22 +1,16 @@
 #!/usr/bin/env node
 
+const { version } = require('./package.json');
+const ora = require('ora');
 const util = require('util');
 const fs = require('fs');
 const chalk = require('chalk');
 const prettyjson = require('prettyjson');
 const axios = require('axios');
-const url = require('url') ;
-const clui = require('clui');
-const filesize = require('filesize');
 const commander = require('commander');
+const FormData = require('form-data');
+const mime = require('mime-types');
 const _ = require('lodash');
-
-const cliHome = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.http-cli';
-
-const contentTypes = {
-    'json': 'application/json',
-    'text': 'text/plain'
-};
 
 const log = console.log;
 
@@ -25,15 +19,14 @@ let warning = chalk.yellow;
 let success = chalk.green;
 let verbose = chalk.blue;
 
-//console.log(util.inspect.styles)
 util.inspect.styles.name = 'green';
 util.inspect.styles.string = 'white';
 util.inspect.styles.boolean = 'red';
 util.inspect.styles.number = 'blue';
 
 axios.interceptors.request.use(request => {
-    let headers = request.headers.common;
-    _.assignIn(headers, request.headers[request.method], commander.header);
+    const headers = keysToLower(request.headers.common);
+    _.assignIn(headers, keysToLower(request.headers[request.method]), keysToLower(commander.header));
     logverbose('\nRequest headers:', headers);
     return request;
 });
@@ -41,6 +34,12 @@ axios.interceptors.request.use(request => {
 // ----------------
 // Useful Functions
 // ----------------
+
+function keysToLower(obj) {
+    return _.transform(obj, (result, val, key) => {
+        result[key.toLowerCase()] = val;
+    });
+}
 
 function props2json(props) {
     return props
@@ -57,7 +56,7 @@ function props2json(props) {
 }
 
 function getContentTypes(type) {
-    let ctype = contentTypes[type];
+    let ctype = mime.contentType(type);
 
     if (!ctype) {
         ctype = 'application/x-www-form-urlencoded';
@@ -117,7 +116,9 @@ function showHeaders(headers) {
 }
 
 function sendRequest(method, url) {
-    logverbose('Sending GET request to ' + chalk.underline(url));
+    logverbose('Sending ' + method.toUpperCase() + ' request to ' + chalk.underline(url));
+
+    const spinner = ora().start();
 
     const options = {
         url,
@@ -132,7 +133,20 @@ function sendRequest(method, url) {
         options.headers = commander.header;
     }
 
-    if (commander.data) {
+    if (commander.datafile) {
+        const data = fs.readFileSync(commander.datafile);
+        const form = new FormData();
+
+        form.append('file', data, {
+            filepath: commander.datafile,
+            contentType: mime.contentType(commander.datafile),
+        });
+
+        _.assignIn(options.headers, form.getHeaders());
+
+        options.data = form;
+    }
+    else if (commander.data) {
         try {
             options.data = JSON.parse(commander.data);
         }
@@ -143,7 +157,7 @@ function sendRequest(method, url) {
 
         if (commander.type) {
             const type = getContentTypes(commander.type);
-            options.headers['Content-Type'] = type;
+            options.headers['content-type'] = type;
         }
     }
 
@@ -154,12 +168,13 @@ function sendRequest(method, url) {
                         .split('\n')
                         .map(v => v.substring(0, v.indexOf(';') > 0 ? v.indexOf(';') : v.length))
                         .join('; ');
-            options.headers['Cookie'] = cookie;
+            options.headers['cookie'] = cookie;
         }
     }
 
     axios(options)
     .then(response => {
+        spinner.stop();
         if (commander.output) {
             const writer = fs.createWriteStream(commander.output);
             response.data.pipe(writer);
@@ -184,6 +199,7 @@ function sendRequest(method, url) {
         }
     })
     .catch(err => {
+        spinner.stop();
         logerr(err);
     });
 }
@@ -208,13 +224,14 @@ function addHeader(header, headers) {
 // -------------
 
 commander
-    .version('0.1.0', '-V, --version')
+    .version(version, '-V, --version')
     .option('-v, --verbose', 'Verbose mode')
     .option('--no-color', 'Monochrome display')
     .option('-o, --output <file name>', 'Save response to a file')
     .option('-y, --yaml', 'Render JSON data in a coloured YAML-style')
     .option('-H, --header <name=value>', 'Set a header', addHeader, {})
     .option('-d, --data [data]', 'Content of request')
+    .option('-D, --datafile <file name>')
     .option('-t, --type <content type>', 'Content type')
     .option('-c, --cookie <cookie file>', 'Cookie file');
 
@@ -235,6 +252,5 @@ if (!commander.color) {
 }
 
 //TODO:
-// - query data (from file)
 // - query headers (from file)
-// - cookies (get / set)
+// - gauge or something that to trace download / upload of files
