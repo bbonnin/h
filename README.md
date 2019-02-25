@@ -5,7 +5,7 @@
 ## Install
 
 ```bash
-npm i -g http-query-cli
+npm i -g http-request-cli
 ```
 
 > Now you have `h` as a command to query http endpoint in your terminal.
