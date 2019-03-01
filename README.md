@@ -55,6 +55,14 @@ h get https://jsonplaceholder.typicode.com/todos/1 -y
 
 ![simple query yaml](docs/simple-get-yaml.png)
 
+* POST request with data provided as JSON
+
+```bash
+h post https://jsonplaceholder.typicode.com/posts -d '{"name":"bob"}'
+```
+
+![post json](docs/post-json.png)
+
 * POST request with data provided as properties and converted into JSON
 
 ```bash
@@ -63,10 +71,13 @@ h post https://jsonplaceholder.typicode.com/posts -d name=alice
 
 ![post props](docs/post-props.png)
 
-* POST request with data provided as properties and converted into JSON
 
-```bash
-h post https://jsonplaceholder.typicode.com/posts -d '{"name":"bob"}'
-```
+## TODO
 
-![post json](docs/post-json.png)
+* Automatic save of binary files (images, pdf, ...)
+* Headers provided in a file
+* Proxy support
+* Username/password
+* Type of authentication (basic, ...)
+* POST by default when data is provided
+* Follow redirects
