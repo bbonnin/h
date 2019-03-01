@@ -6,7 +6,6 @@ const util = require('util');
 const fs = require('fs');
 const chalk = require('chalk');
 const prettyjson = require('prettyjson');
-const axios = require('axios');
 const commander = require('commander');
 const FormData = require('form-data');
 const mime = require('mime-types');
@@ -24,16 +23,18 @@ util.inspect.styles.string = 'white';
 util.inspect.styles.boolean = 'red';
 util.inspect.styles.number = 'blue';
 
-axios.interceptors.request.use(request => {
-    const headers = keysToLower(request.headers.common);
-    _.assignIn(headers, keysToLower(request.headers[request.method]), keysToLower(commander.header));
-    logverbose('\nRequest headers:', headers);
-    return request;
-});
-
 // ----------------
 // Useful Functions
 // ----------------
+
+function initInterceptors(axios) {
+    axios.interceptors.request.use(request => {
+        const headers = keysToLower(request.headers.common);
+        _.assignIn(headers, keysToLower(request.headers[request.method]), keysToLower(commander.header));
+        logverbose('\nRequest headers:', headers);
+        return request;
+    });
+}
 
 function keysToLower(obj) {
     return _.transform(obj, (result, val, key) => {
@@ -125,6 +126,10 @@ function sendRequest(method, url) {
         method
     };
 
+    if (!options.url.startsWith('http')) {
+        options.url = 'https://' + options.url;
+    }
+
     if (commander.output) {
         options.responseType = 'stream';
     }
@@ -171,6 +176,37 @@ function sendRequest(method, url) {
             options.headers['cookie'] = cookie;
         }
     }
+
+    let axios = require('axios');
+
+    if (commander.proxy) {
+        const proxyUrl = new URL(commander.proxy);
+        const targetUrl = new URL(url);
+
+        if (proxyUrl.protocol === 'http:' && targetUrl.protocol === 'https:') {
+            //Bug: https://github.com/axios/axios/issues/925
+            logverbose('Due to a bug, use of an alternative Axios')
+            axios = require('axios-https-proxy-fix');
+        }
+
+        options.proxy = {
+            host: proxyUrl.hostname,
+            port: proxyUrl.port
+        };
+
+        if (proxyUrl.username) {
+            options.proxy.auth = {
+                username: proxyUrl.username,
+                password: proxyUrl.password
+            };
+        }
+
+        logverbose('Proxy=' + JSON.stringify(options.proxy));
+    }
+
+    initInterceptors(axios);
+
+    logverbose('Options=' + JSON.stringify(options));
 
     axios(options)
     .then(response => {
@@ -233,6 +269,7 @@ commander
     .option('-d, --data [data]', 'Content of request')
     .option('-D, --datafile <file name>')
     .option('-t, --type <content type>', 'Content type')
+    .option('-p, --proxy <proxy url>', 'Proxy (format: http(s)://[username:password@]proxyhost:proxyport')
     .option('-c, --cookie <cookie file>', 'Cookie file');
 
 configureMethodCommand('get');
@@ -242,6 +279,11 @@ configureMethodCommand('delete');
 configureMethodCommand('patch');
 configureMethodCommand('head');
 
+commander.on('command:*', () => {
+    console.error('Invalid command: %s\nSee --help for a list of available commands.', commander.args.join(' '));
+    process.exit(1);
+});
+
 commander.parse(process.argv);
 
 if (!commander.color) {
@@ -250,7 +292,3 @@ if (!commander.color) {
     verbose = chalk.reset;
     success = chalk.reset;
 }
-
-//TODO:
-// - query headers (from file)
-// - gauge or something that to trace download / upload of files
