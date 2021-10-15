@@ -30,7 +30,8 @@ util.inspect.styles.number = 'blue';
 function initInterceptors(axios) {
     axios.interceptors.request.use(request => {
         const headers = keysToLower(request.headers.common);
-        _.assignIn(headers, keysToLower(request.headers[request.method]), keysToLower(commander.header));
+        _.assignIn(headers, keysToLower(request.headers[request.method]), 
+            keysToLower(commander.header), keysToLower(commander.headers));
         logverbose('\nRequest headers:', headers);
         return request;
     });
@@ -134,11 +135,10 @@ function sendRequest(method, url) {
         options.responseType = 'stream';
     }
 
-    if (commander.header) {
+    if (!_.isEmpty(commander.header)) {
         options.headers = commander.header;
     }
-
-    if (commander.headers) {
+    else if (!_.isEmpty(commander.headers)) {
         options.headers = commander.headers;
     }
 
