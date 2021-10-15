@@ -30,7 +30,8 @@ util.inspect.styles.number = 'blue';
 function initInterceptors(axios) {
     axios.interceptors.request.use(request => {
         const headers = keysToLower(request.headers.common);
-        _.assignIn(headers, keysToLower(request.headers[request.method]), keysToLower(commander.header));
+        _.assignIn(headers, keysToLower(request.headers[request.method]), 
+            keysToLower(commander.header), keysToLower(commander.headers));
         logverbose('\nRequest headers:', headers);
         return request;
     });
@@ -134,8 +135,11 @@ function sendRequest(method, url) {
         options.responseType = 'stream';
     }
 
-    if (commander.header) {
+    if (!_.isEmpty(commander.header)) {
         options.headers = commander.header;
+    }
+    else if (!_.isEmpty(commander.headers)) {
+        options.headers = commander.headers;
     }
 
     if (commander.datafile) {
@@ -260,6 +264,17 @@ function addHeader(header, headers) {
     return headers;
 }
 
+function addHeaders(headerFileName, headers) {
+    fs.readFileSync(headerFileName, 'utf-8')
+        .split(/\r?\n/)
+        .forEach(function(line) {
+            if (line) {
+                addHeader(line, headers);
+            }
+        });
+    return headers;
+}
+
 // -------------
 // Let's go !!!!
 // -------------
@@ -271,6 +286,7 @@ commander
     .option('-o, --output <file name>', 'Save response to a file')
     .option('-y, --yaml', 'Render JSON data in a coloured YAML-style')
     .option('-H, --header <name=value>', 'Set a header', addHeader, {})
+    .option('--headers <file name>', 'Set headers from a file', addHeaders, {})
     .option('-d, --data [data]', 'Content of request')
     .option('-D, --datafile <file name>')
     .option('-t, --type <content type>', 'Content type')
