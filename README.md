@@ -78,5 +78,4 @@ h post https://jsonplaceholder.typicode.com/posts -d name=alice
 * Headers provided in a file
 * Proxy support [first version: to be largely tested]
 * Type of authentication (basic, ...) + Username/password
-* POST by default when data is provided
 * Progress bar 
