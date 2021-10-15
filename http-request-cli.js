@@ -138,6 +138,10 @@ function sendRequest(method, url) {
         options.headers = commander.header;
     }
 
+    if (commander.headers) {
+        options.headers = commander.headers;
+    }
+
     if (commander.datafile) {
         const data = fs.readFileSync(commander.datafile);
         const form = new FormData();
@@ -255,6 +259,17 @@ function addHeader(header, headers) {
     return headers;
 }
 
+function addHeaders(headerFileName, headers) {
+    fs.readFileSync(headerFileName, 'utf-8')
+        .split(/\r?\n/)
+        .forEach(function(line) {
+            if (line) {
+                addHeader(line, headers);
+            }
+        });
+    return headers;
+}
+
 // -------------
 // Let's go !!!!
 // -------------
@@ -266,6 +281,7 @@ commander
     .option('-o, --output <file name>', 'Save response to a file')
     .option('-y, --yaml', 'Render JSON data in a coloured YAML-style')
     .option('-H, --header <name=value>', 'Set a header', addHeader, {})
+    .option('--headers <file name>', 'Set headers from a file', addHeaders, {})
     .option('-d, --data [data]', 'Content of request')
     .option('-D, --datafile <file name>')
     .option('-t, --type <content type>', 'Content type')

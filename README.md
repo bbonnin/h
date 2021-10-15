@@ -75,7 +75,6 @@ h post https://jsonplaceholder.typicode.com/posts -d name=alice
 ## TODO
 
 * Automatic save of binary files (images, pdf, ...)
-* Headers provided in a file
 * Proxy support [first version: to be largely tested]
 * Type of authentication (basic, ...) + Username/password
 * POST by default when data is provided
