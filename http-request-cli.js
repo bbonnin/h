@@ -7,8 +7,10 @@ const fs = require('fs');
 const chalk = require('chalk');
 const prettyjson = require('prettyjson');
 const commander = require('commander');
+const { prompt } = require('enquirer');
 const FormData = require('form-data');
 const mime = require('mime-types');
+const https = require('https');
 const _ = require('lodash');
 
 const log = console.log;
@@ -117,7 +119,7 @@ function showHeaders(headers) {
     }
 }
 
-function sendRequest(method, url) {
+async function sendRequest(method, url) {
     logverbose('Sending ' + method.toUpperCase() + ' request to ' + chalk.underline(url));
 
     const spinner = ora().start();
@@ -170,6 +172,26 @@ function sendRequest(method, url) {
         }
     }
 
+    if (commander.user) {
+        // User can contain the user name and the password or just the user name
+        // In this case, prompt the password
+        const usrPwd = commander.user;
+        if (commander.user.indexOf(':') != -1) {
+            options.auth = { 
+                username: usrPwd.substring(0, usrPwd.indexOf(':')),
+                password: usrPwd.substring(usrPwd.indexOf(':') + 1) };
+        }
+        else {
+            const auth = await prompt({
+                type: 'password',
+                name: 'password',
+                message: 'Password?'
+            });
+            auth.username = usrPwd;
+            options.auth = auth;
+        }
+    }
+
     if (options.data && method.toUpperCase() === 'GET') {
         logwarn('Cannot send data with GET, POST will be used');
         options.method = 'POST';
@@ -211,6 +233,10 @@ function sendRequest(method, url) {
         }
 
         logverbose('Proxy=' + JSON.stringify(options.proxy));
+    }
+
+    if (commander.acceptUnauthorized) {
+        options.httpsAgent = new https.Agent({ rejectUnauthorized: false });
     }
 
     initInterceptors(axios);
@@ -291,7 +317,9 @@ commander
     .option('-D, --datafile <file name>')
     .option('-t, --type <content type>', 'Content type')
     .option('-p, --proxy <proxy url>', 'Proxy (format: http(s)://[username:password@]proxyhost:proxyport')
-    .option('-c, --cookie <cookie file>', 'Cookie file');
+    .option('-c, --cookie <cookie file>', 'Cookie file')
+    .option('-u, --user <username:password>', 'Basic authentication')
+    .option('--accept-unauthorized', 'For https, accept unauthorized connection');
 
 configureMethodCommand('get');
 configureMethodCommand('post');
