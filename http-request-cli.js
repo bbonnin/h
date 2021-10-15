@@ -170,6 +170,11 @@ function sendRequest(method, url) {
         }
     }
 
+    if (options.data && method.toUpperCase() === 'GET') {
+        logwarn('Cannot send data with GET, POST will be used');
+        options.method = 'POST';
+    }
+
     if (commander.cookie) {
         if (fs.existsSync(commander.cookie)) {
             let cookie = fs.readFileSync(commander.cookie, 'utf8');
