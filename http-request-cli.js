@@ -126,7 +126,8 @@ async function sendRequest(method, url) {
 
     const options = {
         url,
-        method
+        method,
+        maxRedirects: 0
     };
 
     if (!options.url.startsWith('http')) {
@@ -239,6 +240,10 @@ async function sendRequest(method, url) {
         options.httpsAgent = new https.Agent({ rejectUnauthorized: false });
     }
 
+    if (commander.follow) {
+        options.maxRedirects = commander.maxRedirects ? commander.maxRedirects : 5;
+    }
+
     initInterceptors(axios);
 
     logverbose('Options=' + JSON.stringify(options));
@@ -301,6 +306,13 @@ function addHeaders(headerFileName, headers) {
     return headers;
 }
 
+function parseInteger(value) {
+    if (/^(-|\+)?(\d+)$/.test(value)) {
+        return Number(value);
+    }
+    throw new commander.InvalidArgumentError('Not a number.');
+}
+
 // -------------
 // Let's go !!!!
 // -------------
@@ -319,7 +331,9 @@ commander
     .option('-p, --proxy <proxy url>', 'Proxy (format: http(s)://[username:password@]proxyhost:proxyport')
     .option('-c, --cookie <cookie file>', 'Cookie file')
     .option('-u, --user <username:password>', 'Basic authentication')
-    .option('--accept-unauthorized', 'For https, accept unauthorized connection');
+    .option('--accept-unauthorized', 'For https, accept unauthorized connection')
+    .option('--follow', 'Follow the redirections')
+    .option('--max-redirects <value>', 'Maximum number of redirects (default: 0, i.e. no redirects)', parseInteger);
 
 configureMethodCommand('get');
 configureMethodCommand('post');
